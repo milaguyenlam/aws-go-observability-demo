@@ -50,11 +50,11 @@ type App struct {
 	tracer  trace.Tracer
 }
 
-// User model
-type User struct {
+// CoffeeOrder model
+type CoffeeOrder struct {
 	ID        int       `json:"id"`
-	Name      string    `json:"name"`
-	Email     string    `json:"email"`
+	UserName  string    `json:"user_name"`
+	CoffeeType string    `json:"coffee_type"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
@@ -145,12 +145,9 @@ func main() {
 
 	// Routes
 	router.Get("/health", app.healthHandler)
-	router.Route("/users", func(r chi.Router) {
-		r.Get("/", app.getUsersHandler)
-		r.Post("/", app.createUserHandler)
-		r.Get("/{id}", app.getUserHandler)
-		r.Put("/{id}", app.updateUserHandler)
-		r.Delete("/{id}", app.deleteUserHandler)
+	router.Route("/coffee", func(r chi.Router){
+		r.Get("/{id}", app.receiveCoffeeOrderHandler)
+		r.Post("/", app.createCoffeeOrderHandler)
 	})
 
 	// Demo endpoints for observability
@@ -251,15 +248,12 @@ func (app *App) initSchema() error {
 	defer span.End()
 
 	query := `
-	CREATE TABLE IF NOT EXISTS users (
+	CREATE TABLE IF NOT EXISTS coffee_orders (
 		id SERIAL PRIMARY KEY,
-		name VARCHAR(255) NOT NULL,
-		email VARCHAR(255) UNIQUE NOT NULL,
+		user_name VARCHAR(255) NOT NULL,
+		coffee_type VARCHAR(255) NOT NULL,
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 	);
-	
-	CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-	CREATE INDEX IF NOT EXISTS idx_users_created_at ON users(created_at);
 	`
 
 	_, err := app.db.ExecContext(ctx, query)
@@ -402,51 +396,61 @@ func (app *App) healthHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-func (app *App) getUsersHandler(w http.ResponseWriter, r *http.Request) {
-	ctx, span := app.tracer.Start(r.Context(), "getUsersHandler")
+/// coffee order handlers
+func (app *App) receiveCoffeeOrderHandler(w http.ResponseWriter, r *http.Request) {
+	ctx, span := app.tracer.Start(r.Context(), "receiveCoffeeOrderHandler")
 	defer span.End()
 
 	start := time.Now()
 
-	query := "SELECT id, name, email, created_at FROM users ORDER BY created_at DESC LIMIT 100"
-	rows, err := app.db.QueryContext(ctx, query)
+	idStr := chi.URLParam(r, "id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "Invalid coffee order ID")
+		app.logError(w, r, "Invalid coffee order ID", err)
+		return
+	}
+
+	query := "SELECT id, user_name, coffee_type, created_at FROM coffee_orders WHERE id = $1"
+	rows, err := app.db.QueryContext(ctx, query, id)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
-		app.logError(w, r, "Failed to query users", err)
+		app.logError(w, r, "Failed to query coffee orders", err)
 		return
 	}
 	defer rows.Close()
 
-	var users []User
+	var coffeeOrders []CoffeeOrder
 	for rows.Next() {
-		var user User
-		if err := rows.Scan(&user.ID, &user.Name, &user.Email, &user.CreatedAt); err != nil {
+		var coffeeOrder CoffeeOrder
+		if err := rows.Scan(&coffeeOrder.ID, &coffeeOrder.UserName, &coffeeOrder.CoffeeType, &coffeeOrder.CreatedAt); err != nil {
 			span.RecordError(err)
 			span.SetStatus(codes.Error, err.Error())
-			app.logError(w, r, "Failed to scan user", err)
+			app.logError(w, r, "Failed to scan coffee order", err)
 			return
 		}
-		users = append(users, user)
+		coffeeOrders = append(coffeeOrders, coffeeOrder)
 	}
 
 	duration := time.Since(start)
 	span.SetAttributes(
-		attribute.Int("users.count", len(users)),
+		attribute.Int("coffee_orders.count", len(coffeeOrders)),
 		attribute.Float64("db.query.duration", duration.Seconds()),
 	)
-	span.SetStatus(codes.Ok, "Users retrieved successfully")
+	span.SetStatus(codes.Ok, "Coffee orders retrieved successfully")
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(users)
+	json.NewEncoder(w).Encode(coffeeOrders)
 }
 
-func (app *App) createUserHandler(w http.ResponseWriter, r *http.Request) {
-	ctx, span := app.tracer.Start(r.Context(), "createUserHandler")
+func (app *App) createCoffeeOrderHandler(w http.ResponseWriter, r *http.Request) {
+	ctx, span := app.tracer.Start(r.Context(), "createCoffeeOrderHandler")
 	defer span.End()
 
-	var user User
-	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
+	var coffeeOrder CoffeeOrder
+	if err := json.NewDecoder(r.Body).Decode(&coffeeOrder); err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		app.logError(w, r, "Invalid JSON", err)
@@ -454,177 +458,38 @@ func (app *App) createUserHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	span.SetAttributes(
-		attribute.String("user.name", user.Name),
-		attribute.String("user.email", user.Email),
+		attribute.String("coffee_order.user_name", coffeeOrder.UserName),
+		attribute.String("coffee_order.coffee_type", coffeeOrder.CoffeeType),
 	)
 
 	start := time.Now()
-	query := "INSERT INTO users (name, email) VALUES ($1, $2) RETURNING id, created_at"
-	err := app.db.QueryRowContext(ctx, query, user.Name, user.Email).Scan(&user.ID, &user.CreatedAt)
+	query := "INSERT INTO coffee_orders (user_name, coffee_type) VALUES ($1, $2) RETURNING id, created_at"
+	err := app.db.QueryRowContext(ctx, query, coffeeOrder.UserName, coffeeOrder.CoffeeType).Scan(&coffeeOrder.ID, &coffeeOrder.CreatedAt)
 	if err != nil {
 		if pqErr, ok := err.(*pq.Error); ok && pqErr.Code == "23505" {
 			span.RecordError(err)
-			span.SetStatus(codes.Error, "Email already exists")
-			app.logError(w, r, "Email already exists", err)
+			span.SetStatus(codes.Error, "Coffee order already exists")
+			app.logError(w, r, "Coffee order already exists", err)
 			return
 		}
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
-		app.logError(w, r, "Failed to create user", err)
+		app.logError(w, r, "Failed to create coffee order", err)
 		return
 	}
 
 	duration := time.Since(start)
 	span.SetAttributes(
-		attribute.Int("user.id", user.ID),
+		attribute.Int("coffee_order.id", coffeeOrder.ID),
 		attribute.Float64("db.query.duration", duration.Seconds()),
 	)
-	span.SetStatus(codes.Ok, "User created successfully")
+	span.SetStatus(codes.Ok, "Coffee order created successfully")
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(user)
+	json.NewEncoder(w).Encode(coffeeOrder)
 }
 
-func (app *App) getUserHandler(w http.ResponseWriter, r *http.Request) {
-	ctx, span := app.tracer.Start(r.Context(), "getUserHandler")
-	defer span.End()
-
-	idStr := chi.URLParam(r, "id")
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "Invalid user ID")
-		app.logError(w, r, "Invalid user ID", err)
-		return
-	}
-
-	span.SetAttributes(attribute.Int("user.id", id))
-
-	start := time.Now()
-	query := "SELECT id, name, email, created_at FROM users WHERE id = $1"
-	var user User
-	err = app.db.QueryRowContext(ctx, query, id).Scan(&user.ID, &user.Name, &user.Email, &user.CreatedAt)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			span.SetStatus(codes.Error, "User not found")
-			http.Error(w, "User not found", http.StatusNotFound)
-			return
-		}
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-		app.logError(w, r, "Failed to get user", err)
-		return
-	}
-
-	duration := time.Since(start)
-	span.SetAttributes(
-		attribute.String("user.name", user.Name),
-		attribute.String("user.email", user.Email),
-		attribute.Float64("db.query.duration", duration.Seconds()),
-	)
-	span.SetStatus(codes.Ok, "User retrieved successfully")
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(user)
-}
-
-func (app *App) updateUserHandler(w http.ResponseWriter, r *http.Request) {
-	ctx, span := app.tracer.Start(r.Context(), "updateUserHandler")
-	defer span.End()
-
-	idStr := chi.URLParam(r, "id")
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "Invalid user ID")
-		app.logError(w, r, "Invalid user ID", err)
-		return
-	}
-
-	var user User
-	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-		app.logError(w, r, "Invalid JSON", err)
-		return
-	}
-
-	span.SetAttributes(
-		attribute.Int("user.id", id),
-		attribute.String("user.name", user.Name),
-		attribute.String("user.email", user.Email),
-	)
-
-	start := time.Now()
-	query := "UPDATE users SET name = $1, email = $2 WHERE id = $3 RETURNING created_at"
-	err = app.db.QueryRowContext(ctx, query, user.Name, user.Email, id).Scan(&user.CreatedAt)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			span.SetStatus(codes.Error, "User not found")
-			http.Error(w, "User not found", http.StatusNotFound)
-			return
-		}
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-		app.logError(w, r, "Failed to update user", err)
-		return
-	}
-
-	user.ID = id
-	duration := time.Since(start)
-	span.SetAttributes(attribute.Float64("db.query.duration", duration.Seconds()))
-	span.SetStatus(codes.Ok, "User updated successfully")
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(user)
-}
-
-func (app *App) deleteUserHandler(w http.ResponseWriter, r *http.Request) {
-	ctx, span := app.tracer.Start(r.Context(), "deleteUserHandler")
-	defer span.End()
-
-	idStr := chi.URLParam(r, "id")
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "Invalid user ID")
-		app.logError(w, r, "Invalid user ID", err)
-		return
-	}
-
-	span.SetAttributes(attribute.Int("user.id", id))
-
-	start := time.Now()
-	query := "DELETE FROM users WHERE id = $1"
-	result, err := app.db.ExecContext(ctx, query, id)
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-		app.logError(w, r, "Failed to delete user", err)
-		return
-	}
-
-	rowsAffected, err := result.RowsAffected()
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
-		app.logError(w, r, "Failed to get rows affected", err)
-		return
-	}
-
-	if rowsAffected == 0 {
-		span.SetStatus(codes.Error, "User not found")
-		http.Error(w, "User not found", http.StatusNotFound)
-		return
-	}
-
-	duration := time.Since(start)
-	span.SetAttributes(attribute.Float64("db.query.duration", duration.Seconds()))
-	span.SetStatus(codes.Ok, "User deleted successfully")
-
-	w.WriteHeader(http.StatusNoContent)
-}
 
 // Demo handlers for observability
 func (app *App) slowQueryHandler(w http.ResponseWriter, r *http.Request) {
