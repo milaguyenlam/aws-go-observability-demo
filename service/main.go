@@ -52,10 +52,10 @@ type App struct {
 
 // CoffeeOrder model
 type CoffeeOrder struct {
-	ID        int       `json:"id"`
-	UserName  string    `json:"user_name"`
+	ID         int       `json:"id"`
+	UserName   string    `json:"user_name"`
 	CoffeeType string    `json:"coffee_type"`
-	CreatedAt time.Time `json:"created_at"`
+	CreatedAt  time.Time `json:"created_at"`
 }
 
 // HealthResponse represents the health check response
@@ -145,7 +145,7 @@ func main() {
 
 	// Routes
 	router.Get("/health", app.healthHandler)
-	router.Route("/coffee", func(r chi.Router){
+	router.Route("/coffee", func(r chi.Router) {
 		r.Get("/{id}", app.receiveCoffeeOrderHandler)
 		r.Post("/", app.createCoffeeOrderHandler)
 	})
@@ -396,7 +396,7 @@ func (app *App) healthHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-/// coffee order handlers
+// / coffee order handlers
 func (app *App) receiveCoffeeOrderHandler(w http.ResponseWriter, r *http.Request) {
 	ctx, span := app.tracer.Start(r.Context(), "receiveCoffeeOrderHandler")
 	defer span.End()
@@ -488,8 +488,12 @@ func (app *App) createCoffeeOrderHandler(w http.ResponseWriter, r *http.Request)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(coffeeOrder)
-}
 
+	app.metrics.sendCreatedCoffeeOrderMetrics(
+		coffeeOrder.UserName,
+		coffeeOrder.CoffeeType,
+	)
+}
 
 // Demo handlers for observability
 func (app *App) slowQueryHandler(w http.ResponseWriter, r *http.Request) {
@@ -671,6 +675,35 @@ func (m *CloudWatchMetrics) sendMetrics(endpoint string, statusCode int, duratio
 	}
 }
 
+func (m *CloudWatchMetrics) sendCreatedCoffeeOrderMetrics(userName, coffeeType string) {
+	namespace := "GoObservabilityDemo/Application"
+
+	metric := &cloudwatch.MetricDatum{
+		MetricName: aws.String("CreatedCoffeeOrders"),
+		Value:      aws.Float64(1),
+		Unit:       aws.String("Count"),
+		Dimensions: []*cloudwatch.Dimension{
+			{
+				Name:  aws.String("UserName"),
+				Value: aws.String(userName),
+			},
+			{
+				Name:  aws.String("CoffeeType"),
+				Value: aws.String(coffeeType),
+			},
+		},
+		Timestamp: aws.Time(time.Now()),
+	}
+
+	_, err := m.cw.PutMetricData(&cloudwatch.PutMetricDataInput{
+		Namespace:  aws.String(namespace),
+		MetricData: []*cloudwatch.MetricDatum{metric},
+	})
+
+	if err != nil {
+		m.logger.Error("Failed to send created coffee order metric to CloudWatch", zap.Error(err))
+	}
+}
 func (m *CloudWatchMetrics) sendErrorMetric(errorType string) {
 	namespace := "GoObservabilityDemo/Application"
 
