@@ -339,15 +339,11 @@ export class GoObservabilityDemoStack extends cdk.Stack {
         height: 6,
       }),
       new cdk.aws_cloudwatch.GraphWidget({
-        title: "Custom Application Metrics",
+        title: "Created Coffee Orders Metrics",
         left: [
           new cdk.aws_cloudwatch.Metric({
             namespace: "GoObservabilityDemo/Application",
-            metricName: "RequestCount",
-          }),
-          new cdk.aws_cloudwatch.Metric({
-            namespace: "GoObservabilityDemo/Application",
-            metricName: "RequestDuration",
+            metricName: "CreatedCoffeeOrders",
           }),
         ],
         width: 12,
