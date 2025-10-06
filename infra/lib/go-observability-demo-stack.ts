@@ -194,7 +194,7 @@ export class GoObservabilityDemoStack extends cdk.Stack {
               "GoObservabilityDemoRepository",
               "go-observability-demo"
             ),
-            "0.1.2"
+            "0.2.1"
           ), // Placeholder - will be updated
           containerPort: 8080,
           environment: {
@@ -274,7 +274,7 @@ export class GoObservabilityDemoStack extends cdk.Stack {
     // Add widgets to dashboard
     dashboard.addWidgets(
       new cdk.aws_cloudwatch.GraphWidget({
-        title: "ALB Metrics",
+        title: "ALB Request Count",
         left: [
           new cdk.aws_cloudwatch.Metric({
             namespace: "AWS/ApplicationELB",
@@ -282,13 +282,24 @@ export class GoObservabilityDemoStack extends cdk.Stack {
             dimensionsMap: {
               LoadBalancer: service.loadBalancer.loadBalancerFullName,
             },
+            statistic: "Sum",
+            period: cdk.Duration.seconds(30),
           }),
+        ],
+        width: 12,
+        height: 6,
+      }),
+      new cdk.aws_cloudwatch.GraphWidget({
+        title: "ALB Target Response Time",
+        left: [
           new cdk.aws_cloudwatch.Metric({
             namespace: "AWS/ApplicationELB",
             metricName: "TargetResponseTime",
             dimensionsMap: {
               LoadBalancer: service.loadBalancer.loadBalancerFullName,
             },
+            statistic: "Average",
+            period: cdk.Duration.seconds(30),
           }),
         ],
         width: 12,
@@ -327,13 +338,6 @@ export class GoObservabilityDemoStack extends cdk.Stack {
               DBInstanceIdentifier: database.instanceIdentifier,
             },
           }),
-          new cdk.aws_cloudwatch.Metric({
-            namespace: "AWS/RDS",
-            metricName: "DatabaseConnections",
-            dimensionsMap: {
-              DBInstanceIdentifier: database.instanceIdentifier,
-            },
-          }),
         ],
         width: 12,
         height: 6,
@@ -344,6 +348,8 @@ export class GoObservabilityDemoStack extends cdk.Stack {
           new cdk.aws_cloudwatch.Metric({
             namespace: "GoObservabilityDemo/Application",
             metricName: "CreatedCoffeeOrders",
+            statistic: "Sum",
+            period: cdk.Duration.seconds(30),
           }),
         ],
         width: 12,
@@ -360,9 +366,10 @@ export class GoObservabilityDemoStack extends cdk.Stack {
           LoadBalancer: service.loadBalancer.loadBalancerFullName,
         },
         statistic: "Sum",
+        period: cdk.Duration.seconds(30),
       }),
       threshold: 5,
-      evaluationPeriods: 2,
+      evaluationPeriods: 1,
       alarmDescription: "High error rate detected",
     });
 
@@ -373,10 +380,11 @@ export class GoObservabilityDemoStack extends cdk.Stack {
         dimensionsMap: {
           LoadBalancer: service.loadBalancer.loadBalancerFullName,
         },
-        statistic: "Average",
+        statistic: "Maximum",
+        period: cdk.Duration.seconds(30),
       }),
-      threshold: 2,
-      evaluationPeriods: 2,
+      threshold: 3,
+      evaluationPeriods: 1,
       alarmDescription: "High response time detected",
     });
 
@@ -389,11 +397,23 @@ export class GoObservabilityDemoStack extends cdk.Stack {
           ClusterName: cluster.clusterName,
         },
         statistic: "Average",
+        period: cdk.Duration.seconds(30),
       }),
       threshold: 80,
-      evaluationPeriods: 2,
-
+      evaluationPeriods: 1,
       alarmDescription: "High CPU utilization detected",
+    });
+
+    new cdk.aws_cloudwatch.Alarm(this, "TooManyCreatedCoffeeOrders", {
+      metric: new cdk.aws_cloudwatch.Metric({
+        namespace: "GoObservabilityDemo/Application",
+        metricName: "CreatedCoffeeOrders",
+        statistic: "SampleCount",
+        period: cdk.Duration.seconds(30),
+      }),
+      threshold: 5,
+      evaluationPeriods: 1,
+      alarmDescription: "Too many created coffee orders detected",
     });
 
     // Outputs
