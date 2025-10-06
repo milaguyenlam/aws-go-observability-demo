@@ -187,7 +187,6 @@ func initTracing(region string) (trace.Tracer, func(), error) {
 
 	// Create OTLP exporter (for AWS X-Ray)
 	exporter, err := otlptracehttp.New(context.Background(),
-		otlptracehttp.WithEndpoint("https://xray."+region+".amazonaws.com"),
 		otlptracehttp.WithInsecure(), // Use HTTPS in production
 	)
 	if err != nil {
@@ -358,7 +357,6 @@ func (app *App) tracingMiddleware(next http.Handler) http.Handler {
 func (app *App) metricsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
-		routePattern := chi.RouteContext(r.Context()).RoutePattern()
 
 		wrapped := &responseWriter{ResponseWriter: w, statusCode: http.StatusOK}
 		next.ServeHTTP(wrapped, r)
@@ -366,6 +364,7 @@ func (app *App) metricsMiddleware(next http.Handler) http.Handler {
 		duration := time.Since(start)
 
 		// Send metrics to CloudWatch
+		routePattern := chi.RouteContext(r.Context()).RoutePattern()
 		go app.metrics.sendMetrics(routePattern, wrapped.statusCode, duration)
 	})
 }

@@ -84,8 +84,6 @@ cdk.context.json
 # Build artifacts
 dist/
 build/
-lib/
-bin/
 
 # Test coverage
 coverage/

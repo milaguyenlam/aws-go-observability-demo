@@ -228,6 +228,3 @@ After running this demo, you should understand:
 7. **Cover best practices** - what to monitor, how to set thresholds
 
 This demo provides a complete, production-ready example of observability in Go services on AWS!
-
-
-use x-aws-trace-id header
