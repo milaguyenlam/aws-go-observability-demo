@@ -181,10 +181,10 @@ func (app *App) createCoffeeOrderMatusHandler(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	// Matus always saves "beer" instead of the requested coffee type
+	// Matus always saves "borovicka" instead of the requested coffee type
 	modifiedOrder := CreateCoffeeOrder{
 		UserName:   coffeeOrder.UserName,
-		CoffeeType: "beer", // Always beer!
+		CoffeeType: "borovicka", // Always borovicka!
 	}
 
 	order, err := app.db.CreateCoffeeOrder(ctx, modifiedOrder)

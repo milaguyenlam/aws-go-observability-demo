@@ -21,7 +21,7 @@ const MetricsNamespace = "GoObservabilityDemo/Application"
 
 // sendRouteMetrics sends route metrics to CloudWatch
 func (m *CloudWatchMetrics) sendRouteMetrics(ctx context.Context, endpoint string, duration time.Duration) {
-	ctx, span := m.tracer.Start(ctx, "sendRouteMetrics")
+	ctx, span := m.tracer.Start(ctx, "metrics.sendRouteMetrics")
 	defer span.End()
 
 	metrics := []*cloudwatch.MetricDatum{
@@ -76,7 +76,7 @@ func (m *CloudWatchMetrics) sendRouteMetrics(ctx context.Context, endpoint strin
 
 // sendCreatedCoffeeOrderMetrics sends coffee order creation metrics to CloudWatch
 func (m *CloudWatchMetrics) sendCreatedCoffeeOrderMetrics(ctx context.Context, coffeeType string, userName string) {
-	ctx, span := m.tracer.Start(ctx, "sendCreatedCoffeeOrderMetrics")
+	ctx, span := m.tracer.Start(ctx, "metrics.sendCreatedCoffeeOrderMetrics")
 	defer span.End()
 
 	metrics := []*cloudwatch.MetricDatum{
