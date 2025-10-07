@@ -194,7 +194,7 @@ export class GoObservabilityDemoStack extends cdk.Stack {
               "GoObservabilityDemoRepository",
               "go-observability-demo"
             ),
-            "0.2.5"
+            "0.0.1"
           ), // Placeholder - will be updated
           containerPort: 8080,
           environment: {
@@ -366,7 +366,7 @@ export class GoObservabilityDemoStack extends cdk.Stack {
           LoadBalancer: service.loadBalancer.loadBalancerFullName,
         },
         statistic: "Sum",
-        period: cdk.Duration.seconds(30),
+        period: cdk.Duration.minutes(10),
       }),
       threshold: 5,
       evaluationPeriods: 1,
@@ -383,7 +383,7 @@ export class GoObservabilityDemoStack extends cdk.Stack {
         statistic: "Maximum",
         period: cdk.Duration.seconds(30),
       }),
-      threshold: 3,
+      threshold: 2,
       evaluationPeriods: 1,
       alarmDescription: "High response time detected",
     });
@@ -396,7 +396,7 @@ export class GoObservabilityDemoStack extends cdk.Stack {
           ServiceName: service.service.serviceName,
           ClusterName: cluster.clusterName,
         },
-        statistic: "Average",
+        statistic: "Maximum",
         period: cdk.Duration.seconds(30),
       }),
       threshold: 80,
@@ -409,7 +409,7 @@ export class GoObservabilityDemoStack extends cdk.Stack {
         namespace: "GoObservabilityDemo/Application",
         metricName: "CreatedCoffeeOrders_Total",
         statistic: "Sum",
-        period: cdk.Duration.seconds(30),
+        period: cdk.Duration.minutes(10),
       }),
       threshold: 5,
       evaluationPeriods: 1,

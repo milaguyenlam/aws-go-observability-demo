@@ -1,6 +1,6 @@
 #!/bin/bash
 
-IMAGE_VERSION="0.2.5"
+IMAGE_VERSION="0.0.1"
 AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 AWS_REGION="eu-central-1"
 ECR_REPOSITORY="go-observability-demo"

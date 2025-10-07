@@ -62,7 +62,6 @@ func (app *App) tracingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Extract trace context from headers
 		ctx := otel.GetTextMapPropagator().Extract(r.Context(), propagation.HeaderCarrier(r.Header))
-
 		// Create span
 		spanName := fmt.Sprintf("%s %s", r.Method, r.URL.Path)
 		ctx, span := app.tracer.Start(ctx, spanName)

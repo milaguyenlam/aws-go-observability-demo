@@ -1,230 +1,286 @@
-# Go Observability Demo
+# Go Team Coffee Service - Observability Demo ☕
 
-A comprehensive demonstration of observability features for Go services running on AWS, including monitoring, logging, metrics, and error tracking.
+A comprehensive Go microservice demonstration showcasing production-ready observability practices in AWS. This project implements structured logging, custom metrics, and distributed tracing to monitor a coffee order management system.
+
+## 🎯 Project Overview
+
+The **Go Team Coffee Service** is a REST API that manages coffee orders for different team members, each with unique behaviors that demonstrate various types of issues that observability helps detect and debug.
+
+### Key Features
+
+- **REST API** for creating and retrieving coffee orders
+- **PostgreSQL database** with pgx driver and automatic tracing
+- **Person-specific endpoints** with different behaviors (slow queries, memory leaks, errors, etc.)
+- **Comprehensive observability stack** with AWS CloudWatch, Zap logging, and OpenTelemetry tracing
+- **AWS infrastructure** deployed with CDK (ECS Fargate, RDS, ALB, CloudWatch)
 
 ## 🏗️ Architecture
 
 ```
-Internet → ALB → ECS Fargate → Go Service → RDS PostgreSQL
-                ↓
-            CloudWatch (Logs, Metrics, Alarms)
-                ↓
-            AWS X-Ray (Distributed Tracing)
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   AWS ALB       │────│   ECS Fargate   │────│   RDS Postgres  │
+│   (Load Balancer)│    │   (Go Service)  │    │   (Database)     │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+         │                       │                       │
+         │                       │                       │
+         ▼                       ▼                       ▼
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   CloudWatch    │    │   AWS X-Ray     │    │   ECR Registry  │
+│   (Metrics &    │    │   (Tracing)     │    │   (Container    │
+│    Logs)        │    │                 │    │    Images)      │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
 ```
 
-## 📋 Prerequisites
+## 🛠️ Technology Stack
 
-- AWS CLI configured with appropriate permissions
-- Docker installed
-- Terraform installed
-- Go 1.21+ (for local development)
-- curl (for testing)
+### Backend
+- **Go 1.21** - Application language
+- **Chi Router** - HTTP routing and middleware
+- **pgx v5** - PostgreSQL driver with built-in tracing
+- **Zap Logger** - Structured logging
+- **OpenTelemetry** - Distributed tracing
+- **AWS SDK** - CloudWatch metrics
+
+### Infrastructure
+- **AWS CDK** - Infrastructure as Code
+- **ECS Fargate** - Container orchestration
+- **RDS PostgreSQL** - Managed database
+- **Application Load Balancer** - Traffic distribution
+- **CloudWatch** - Metrics, logs, and dashboards
+- **AWS X-Ray** - Distributed tracing
+- **ECR** - Container registry
 
 ## 🚀 Quick Start
 
-### 1. Deploy Infrastructure and Service
+### Prerequisites
+
+- **Go 1.21+**
+- **Docker**
+- **AWS CLI** configured with appropriate permissions
+- **AWS CDK** installed (`npm install -g aws-cdk`)
+- **Node.js** (for CDK)
+
+### 1. Clone and Setup
 
 ```bash
-# Clone and navigate to the project
-cd go-observability-demo
-
-# Deploy everything (infrastructure + service)
-./deploy.sh
+git clone <repository-url>
+cd gomeetup-demo
 ```
 
-This script will:
-- Deploy AWS infrastructure using Terraform
-- Build and push Docker image to ECR
-- Deploy Go service to ECS Fargate
-- Set up CloudWatch dashboards and alarms
-- Test the deployment
+### 2. Local Development
 
-### 2. Run Demo Scripts
-
+#### Database Setup
 ```bash
-# Get the ALB DNS name from deployment output
-ALB_DNS="your-alb-dns-name"
-
-# Quick demo of all features
-./demo-quick.sh http://$ALB_DNS
-
-# Load test with multiple users
-./demo-load-test.sh http://$ALB_DNS -u 20 -d 120
+# Start PostgreSQL locally (using Docker)
+docker run --name postgres-demo \
+  -e POSTGRES_DB=observability_demo \
+  -e POSTGRES_USER=postgres \
+  -e POSTGRES_PASSWORD=password \
+  -p 5432:5432 \
+  -d postgres:15
 ```
 
-## 🔍 Observability Features
-
-### 1. **Application Performance Monitoring (APM)**
-- **CloudWatch Custom Metrics**: Request duration, error rates, custom business metrics
-- **OpenTelemetry Tracing**: Distributed tracing with AWS X-Ray integration
-- **Request Correlation**: Each request gets a unique ID for tracing across services
-
-### 2. **Structured Logging**
-- **Zap Logger**: High-performance structured logging
-- **Request Correlation**: Each request gets a unique ID for tracing
-- **Log Levels**: Info, Warn, Error with appropriate context
-- **CloudWatch Logs**: Centralized log aggregation
-
-### 3. **Health Monitoring**
-- **Health Endpoint**: `/health` with database connectivity check
-- **Load Balancer Health Checks**: ALB monitors service health
-- **ECS Health Checks**: Container-level health monitoring
-
-### 4. **Error Tracking**
-- **Panic Recovery**: Middleware catches and logs panics
-- **Error Classification**: Different error types tracked separately
-- **Stack Traces**: Detailed error information in logs
-- **Error Metrics**: CloudWatch counters for error rates
-
-### 5. **Performance Monitoring**
-- **Request Duration**: Histogram of response times
-- **Database Query Performance**: Separate metrics for different query types
-- **Resource Utilization**: CPU and memory monitoring via ECS metrics
-- **Slow Query Detection**: Demo endpoint for testing slow queries
-
-### 6. **Custom Metrics**
-- **Business Metrics**: User creation, API usage patterns
-- **Database Metrics**: Connection pool status, query performance
-- **Application Metrics**: Custom counters and gauges
-- **CloudWatch Integration**: Native AWS metrics with custom dimensions
-
-## 📊 Monitoring Dashboards
-
-### CloudWatch Dashboard
-- **ALB Metrics**: Request count, response time, error rates
-- **ECS Metrics**: CPU utilization, memory usage
-- **RDS Metrics**: Database performance, connections
-- **Custom Metrics**: Application-specific metrics
-- **X-Ray Traces**: Distributed tracing and performance analysis
-
-## 🧪 Demo Scenarios
-
-### 1. **Normal Operations**
-- Health checks
-- User CRUD operations
-- Standard API usage
-
-### 2. **Error Scenarios**
-- Demo error endpoint (`/demo/error`)
-- Database connection issues
-- Invalid input handling
-
-### 3. **Performance Issues**
-- Slow query simulation (`/demo/slow-query`)
-- Memory leak simulation (`/demo/memory-leak`)
-- High CPU usage (`/demo/high-cpu`)
-
-### 4. **Load Testing**
-- Concurrent user simulation
-- High request volume
-- Mixed workload patterns
-
-## 🔧 API Endpoints
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/health` | GET | Service health check |
-| `/users` | GET | List all users |
-| `/users` | POST | Create new user |
-| `/users/{id}` | GET | Get user by ID |
-| `/users/{id}` | PUT | Update user |
-| `/users/{id}` | DELETE | Delete user |
-| `/demo/slow-query` | GET | Simulate slow database query |
-| `/demo/error` | GET | Generate demo error |
-| `/demo/memory-leak` | GET | Simulate memory leak |
-| `/demo/high-cpu` | GET | Simulate high CPU usage |
-
-## 📈 Key Metrics to Monitor
-
-### Application Metrics
-- `RequestDuration`: Request duration in CloudWatch
-- `RequestCount`: Total HTTP requests by endpoint and status
-- `ErrorCount`: Error counts by type
-- `db.query.duration`: Database query performance (in traces)
-
-### Infrastructure Metrics
-- `CPUUtilization`: ECS service CPU usage
-- `MemoryUtilization`: ECS service memory usage
-- `RequestCount`: ALB request count
-- `TargetResponseTime`: ALB response time
-
-### Business Metrics
-- User creation rate
-- API usage patterns
-- Error rates by endpoint
-- Performance trends
-
-## 🚨 Alerts and Thresholds
-
-### CloudWatch Alarms
-- **High Error Rate**: >5 5xx errors in 5 minutes
-- **High Response Time**: >2 seconds average response time
-- **High CPU**: >80% CPU utilization
-- **Database Issues**: Connection failures or slow queries
-
-## 🛠️ Development
-
-### Local Development
+#### Environment Variables
 ```bash
-# Install dependencies
-cd go-service
-go mod download
-
-# Set environment variables
 export DB_HOST=localhost
 export DB_PORT=5432
 export DB_NAME=observability_demo
 export DB_USER=postgres
 export DB_PASSWORD=password
-export AWS_REGION=us-west-2
-
-# Run locally
-go run main.go
+export AWS_REGION=eu-central-1
+export PORT=8080
 ```
 
-### Building Docker Image
+#### Run the Service
 ```bash
-cd go-service
-docker build -t go-observability-demo:latest .
+cd service
+go mod tidy
+go run .
 ```
 
-## 🧹 Cleanup
+The service will be available at `http://localhost:8080`
 
-To avoid AWS charges, clean up resources:
+### 3. AWS Deployment
 
+#### Deploy Infrastructure
 ```bash
-cd infrastructure
-terraform destroy
+cd infra
+npm install
+cdk bootstrap  # First time only
+cdk deploy
 ```
 
-## 📚 Learning Objectives
+#### Build and Push Docker Image
+```bash
+cd service
+chmod +x build-image.sh
+./build-image.sh
+```
 
-After running this demo, you should understand:
+#### Update ECS Service
+```bash
+# Get the ECS service name from CDK output
+aws ecs update-service \
+  --cluster <cluster-name> \
+  --service <service-name> \
+  --force-new-deployment
+```
 
-1. **How to implement comprehensive observability** in Go services
-2. **AWS monitoring best practices** for containerized applications
-3. **Structured logging** with correlation IDs
-4. **Custom metrics** and CloudWatch integration
-5. **Error tracking** and alerting strategies
-6. **Performance monitoring** and optimization
-7. **Load testing** and capacity planning
+## 📊 Observability Features
 
-## 🔗 Useful Links
+### 1. Structured Logging
+- **Zap logger** with JSON output
+- **Request correlation** with unique request IDs
+- **Trace correlation** with OpenTelemetry trace IDs
+- **Structured fields** for easy parsing and filtering
 
-- [AWS CloudWatch Documentation](https://docs.aws.amazon.com/cloudwatch/)
-- [AWS X-Ray Documentation](https://docs.aws.amazon.com/xray/)
-- [OpenTelemetry Go](https://opentelemetry.io/docs/languages/go/)
-- [Go Zap Logger](https://github.com/uber-go/zap)
-- [ECS Monitoring](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/monitoring.html)
+### 2. Custom Metrics
+- **Request duration** and count metrics
+- **Endpoint-specific** metrics with dimensions
+- **Business metrics** (coffee orders by type, user)
+- **CloudWatch integration** with custom namespaces
 
-## 📝 Notes for Your Talk
+### 3. Distributed Tracing
+- **OpenTelemetry** integration with AWS X-Ray
+- **Automatic database tracing** with pgx
+- **Request flow visualization** across services
+- **Performance bottleneck identification**
 
-1. **Start with the architecture** - show the complete stack
-2. **Demonstrate normal operations** - health checks, basic API calls
-3. **Generate errors** - show how they're captured and tracked
-4. **Show performance issues** - slow queries, resource utilization
-5. **Explain the monitoring** - dashboards, metrics, alerts
-6. **Discuss debugging** - how to use logs and metrics together
-7. **Cover best practices** - what to monitor, how to set thresholds
+## 🎭 Demo Endpoints
 
-This demo provides a complete, production-ready example of observability in Go services on AWS!
+Each endpoint demonstrates different types of issues that observability helps detect:
+
+| Endpoint | Behavior | Issue Type | Observability Impact |
+|----------|----------|------------|---------------------|
+| `/coffee-mila` | Normal operation (delayed by 1 hour) | Baseline | Normal metrics and traces |
+| `/coffee-tom` | 3-second delay | Performance | High response time metrics |
+| `/coffee-honza` | Always returns 500 error | Reliability | Error rate metrics, failed traces |
+| `/coffee-marek` | Allocates 250MB memory | Resource leak | High memory usage metrics |
+| `/coffee-viking` | Unnecessary database queries | Performance | High DB query count |
+| `/coffee-matus` | Saves "beer" instead of coffee | Data integrity | Business logic monitoring |
+
+### API Usage Examples
+
+#### Create Coffee Order
+```bash
+curl -X POST http://localhost:8080/coffee-tom \
+  -H "Content-Type: application/json" \
+  -d '{"user_name": "Tom", "coffee_type": "espresso"}'
+```
+
+#### Get Coffee Order
+```bash
+curl http://localhost:8080/coffee/1
+```
+
+#### Health Check
+```bash
+curl http://localhost:8080/health
+```
+
+## 🔧 Configuration
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DB_HOST` | `localhost` | PostgreSQL host |
+| `DB_PORT` | `5432` | PostgreSQL port |
+| `DB_NAME` | `observability_demo` | Database name |
+| `DB_USER` | `postgres` | Database user |
+| `DB_PASSWORD` | `password` | Database password |
+| `AWS_REGION` | `eu-central-1` | AWS region |
+| `PORT` | `8080` | Service port |
+
+### AWS Permissions Required
+
+The service requires the following AWS permissions:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "cloudwatch:PutMetricData",
+        "logs:PutLogEvents",
+        "logs:CreateLogGroup",
+        "logs:CreateLogStream",
+        "xray:PutTraceSegments",
+        "xray:PutTelemetryRecords"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+```
+
+## 📈 Monitoring and Alerting
+
+### CloudWatch Dashboards
+- **Request metrics**: Duration, count, error rate
+- **Infrastructure metrics**: CPU, memory, database connections
+- **Custom business metrics**: Coffee orders by type and user
+
+### Key Metrics to Monitor
+- **Request Duration**: P50, P95, P99 percentiles
+- **Error Rate**: 4xx and 5xx responses
+- **Memory Usage**: Container memory utilization
+- **Database Connections**: Active connections and query duration
+- **Business Metrics**: Coffee orders per minute/hour
+
+### Recommended Alerts
+- High error rate (> 5%)
+- High response time (P95 > 1s)
+- High memory usage (> 80%)
+- Database connection issues
+- Service health check failures
+
+## 🧪 Testing the Observability
+
+### Load Testing
+```bash
+# Install hey (HTTP load testing tool)
+go install github.com/rakyll/hey@latest
+
+# Test different endpoints
+hey -n 100 -c 10 http://localhost:8080/coffee-tom
+hey -n 100 -c 10 http://localhost:8080/coffee-marek
+hey -n 100 -c 10 http://localhost:8080/coffee-honza
+```
+
+### Observability Verification
+1. **Check CloudWatch metrics** for custom application metrics
+2. **View X-Ray traces** for request flow visualization
+3. **Monitor logs** in CloudWatch Logs for structured logging
+4. **Verify correlation** between logs, metrics, and traces
+
+## 🏃‍♂️ Development Workflow
+
+### Local Development
+```bash
+# Start dependencies
+docker-compose up -d postgres
+
+# Run tests
+go test ./...
+
+# Run with hot reload (using air)
+air
+
+# Build Docker image
+docker build -t go-coffee-service .
+```
+
+### CI/CD Pipeline
+```bash
+# Run tests
+go test ./...
+
+# Build and push image
+./build-image.sh
+
+# Deploy infrastructure
+cdk deploy
+```

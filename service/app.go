@@ -123,10 +123,12 @@ func (app *App) createCoffeeOrderMarekHandler(w http.ResponseWriter, r *http.Req
 	}
 
 	var slices [][]byte
-	for i := 0; i < 200; i++ {
+	for i := 0; i < 250; i++ {
 		slice := make([]byte, 1024*1024) // 1MB each
 		slices = append(slices, slice)
 	}
+
+	time.Sleep(1 * time.Second)
 
 	// Create the coffee order after memory allocation
 	order, err := app.db.CreateCoffeeOrder(ctx, coffeeOrder)

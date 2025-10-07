@@ -29,6 +29,13 @@ func (m *CloudWatchMetrics) sendRouteMetrics(ctx context.Context, endpoint strin
 			MetricName: aws.String("RequestDuration"),
 			Value:      aws.Float64(duration.Seconds()),
 			Unit:       aws.String("Seconds"),
+			Dimensions: []*cloudwatch.Dimension{},
+			Timestamp:  aws.Time(time.Now()),
+		},
+		{
+			MetricName: aws.String("RequestDuration"),
+			Value:      aws.Float64(duration.Seconds()),
+			Unit:       aws.String("Seconds"),
 			Dimensions: []*cloudwatch.Dimension{
 				{
 					Name:  aws.String("Endpoint"),
@@ -45,7 +52,7 @@ func (m *CloudWatchMetrics) sendRouteMetrics(ctx context.Context, endpoint strin
 			Timestamp:  aws.Time(time.Now()),
 		},
 		{
-			MetricName: aws.String("RequestCount"),
+			MetricName: aws.String("RequestCount_ByEndpoint"),
 			Value:      aws.Float64(1),
 			Unit:       aws.String("Count"),
 			Dimensions: []*cloudwatch.Dimension{
