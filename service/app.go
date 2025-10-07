@@ -2,18 +2,36 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 )
 
-// healthHandler handles health check requests
+// App represents the application instance
+type App struct {
+	db      *Database
+	logger  *zap.Logger
+	metrics *CloudWatchMetrics
+	region  string
+	tracer  trace.Tracer
+}
+
+// Response writer wrapper
+type responseWriter struct {
+	http.ResponseWriter
+	statusCode int
+}
+
+func (rw *responseWriter) WriteHeader(code int) {
+	rw.statusCode = code
+	rw.ResponseWriter.WriteHeader(code)
+}
+
 func (app *App) healthHandler(w http.ResponseWriter, r *http.Request) {
 	// Check database connectivity
 	ctx := r.Context()
@@ -36,76 +54,173 @@ func (app *App) healthHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-// getCoffeeOrderHandler handles GET requests for coffee orders
 func (app *App) getCoffeeOrderHandler(w http.ResponseWriter, r *http.Request) {
-	ctx, span := app.tracer.Start(r.Context(), "receiveCoffeeOrderHandler")
-	defer span.End()
+	ctx := r.Context()
 
 	idStr := chi.URLParam(r, "id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "Invalid coffee order ID")
 		app.returnErrorResponse(w, r, "Invalid coffee order ID", err)
 		return
 	}
 
 	order, err := app.db.GetCoffeeOrder(ctx, id)
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
 		app.returnErrorResponse(w, r, "Failed to get coffee order", err)
 		return
 	}
-
-	span.SetAttributes(
-		attribute.Int("coffee_order.id", order.ID),
-		attribute.String("coffee_order.user_name", order.UserName),
-		attribute.String("coffee_order.coffee_type", order.CoffeeType),
-	)
-	span.SetStatus(codes.Ok, "Coffee order retrieved successfully")
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(order)
 }
 
-// createCoffeeOrderHandler handles POST requests for creating coffee orders
-func (app *App) createCoffeeOrderHandler(w http.ResponseWriter, r *http.Request) {
-	ctx, span := app.tracer.Start(r.Context(), "createCoffeeOrderHandler")
-	defer span.End()
+func (app *App) createCoffeeOrderTomHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
 
 	var coffeeOrder CreateCoffeeOrder
 	if err := json.NewDecoder(r.Body).Decode(&coffeeOrder); err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
 		app.returnErrorResponse(w, r, "Invalid JSON", err)
 		return
 	}
 
-	span.SetAttributes(
-		attribute.String("coffee_order.user_name", coffeeOrder.UserName),
-		attribute.String("coffee_order.coffee_type", coffeeOrder.CoffeeType),
-	)
+	query := "INSERT INTO coffee_orders (user_name, coffee_type) VALUES ($1, $2) RETURNING id, user_name, coffee_type, created_at"
 
-	order, err := app.db.CreateCoffeeOrder(ctx, coffeeOrder)
+	// Add sleep
+	time.Sleep(3 * time.Second)
+
+	var createdOrder CoffeeOrder
+	err := app.db.pool.QueryRow(ctx, query, coffeeOrder.UserName, coffeeOrder.CoffeeType).Scan(
+		&createdOrder.ID, &createdOrder.UserName, &createdOrder.CoffeeType, &createdOrder.CreatedAt)
 	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, err.Error())
 		app.returnErrorResponse(w, r, "Failed to create coffee order", err)
 		return
 	}
-	span.SetStatus(codes.Ok, "Coffee order created successfully")
 
-	go app.metrics.sendCreatedCoffeeOrderMetrics(
-		order.UserName,
-	)
+	go app.metrics.sendCreatedCoffeeOrderMetrics(ctx, createdOrder.CoffeeType, createdOrder.UserName)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(createdOrder)
+}
+
+func (app *App) createCoffeeOrderHonzaHandler(w http.ResponseWriter, r *http.Request) {
+	var coffeeOrder CreateCoffeeOrder
+	if err := json.NewDecoder(r.Body).Decode(&coffeeOrder); err != nil {
+		app.returnErrorResponse(w, r, "Invalid JSON", err)
+		return
+	}
+
+	app.returnErrorResponse(w, r, "Honza's endpoint is broken", errors.New("intentional failure"))
+}
+
+func (app *App) createCoffeeOrderMarekHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var coffeeOrder CreateCoffeeOrder
+	if err := json.NewDecoder(r.Body).Decode(&coffeeOrder); err != nil {
+		app.returnErrorResponse(w, r, "Invalid JSON", err)
+		return
+	}
+
+	var slices [][]byte
+	for i := 0; i < 200; i++ {
+		slice := make([]byte, 1024*1024) // 1MB each
+		slices = append(slices, slice)
+	}
+
+	// Create the coffee order after memory allocation
+	order, err := app.db.CreateCoffeeOrder(ctx, coffeeOrder)
+	if err != nil {
+		app.returnErrorResponse(w, r, "Failed to create coffee order", err)
+		return
+	}
+
+	go app.metrics.sendCreatedCoffeeOrderMetrics(ctx, order.CoffeeType, order.UserName)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(order)
 }
 
-// logError logs errors and sends error responses
+func (app *App) createCoffeeOrderVikingHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var coffeeOrder CreateCoffeeOrder
+	if err := json.NewDecoder(r.Body).Decode(&coffeeOrder); err != nil {
+		app.returnErrorResponse(w, r, "Invalid JSON", err)
+		return
+	}
+
+	// Viking's unnecessary select queries
+	for i := 0; i < 10; i++ {
+		app.db.GetCoffeeOrder(ctx, i)
+	}
+
+	// Create the actual coffee order
+	order, err := app.db.CreateCoffeeOrder(ctx, coffeeOrder)
+	if err != nil {
+		app.returnErrorResponse(w, r, "Failed to create coffee order", err)
+		return
+	}
+
+	go app.metrics.sendCreatedCoffeeOrderMetrics(ctx, order.CoffeeType, order.UserName)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(order)
+}
+
+func (app *App) createCoffeeOrderMatusHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var coffeeOrder CreateCoffeeOrder
+	if err := json.NewDecoder(r.Body).Decode(&coffeeOrder); err != nil {
+		app.returnErrorResponse(w, r, "Invalid JSON", err)
+		return
+	}
+
+	// Matus always saves "beer" instead of the requested coffee type
+	modifiedOrder := CreateCoffeeOrder{
+		UserName:   coffeeOrder.UserName,
+		CoffeeType: "beer", // Always beer!
+	}
+
+	order, err := app.db.CreateCoffeeOrder(ctx, modifiedOrder)
+	if err != nil {
+		app.returnErrorResponse(w, r, "Failed to create coffee order", err)
+		return
+	}
+
+	go app.metrics.sendCreatedCoffeeOrderMetrics(ctx, order.CoffeeType, order.UserName)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(order)
+}
+
+func (app *App) createCoffeeOrderMilaHandler(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+
+	var coffeeOrder CreateCoffeeOrder
+	if err := json.NewDecoder(r.Body).Decode(&coffeeOrder); err != nil {
+		app.returnErrorResponse(w, r, "Invalid JSON", err)
+		return
+	}
+
+	order, err := app.db.CreateCoffeeOrderInOneHour(ctx, coffeeOrder)
+	if err != nil {
+		app.returnErrorResponse(w, r, "Failed to create coffee order", err)
+		return
+	}
+
+	go app.metrics.sendCreatedCoffeeOrderMetrics(ctx, order.CoffeeType, order.UserName)
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(order)
+}
+
+// returnErrorResponse logs errors and sends error responses
 func (app *App) returnErrorResponse(w http.ResponseWriter, r *http.Request, message string, err error) {
 	requestID := getRequestID(r.Context())
 	traceID := trace.SpanFromContext(r.Context()).SpanContext().TraceID().String()

@@ -194,7 +194,7 @@ export class GoObservabilityDemoStack extends cdk.Stack {
               "GoObservabilityDemoRepository",
               "go-observability-demo"
             ),
-            "0.2.1"
+            "0.2.5"
           ), // Placeholder - will be updated
           containerPort: 8080,
           environment: {
@@ -347,7 +347,7 @@ export class GoObservabilityDemoStack extends cdk.Stack {
         left: [
           new cdk.aws_cloudwatch.Metric({
             namespace: "GoObservabilityDemo/Application",
-            metricName: "CreatedCoffeeOrders",
+            metricName: "CreatedCoffeeOrders_Total",
             statistic: "Sum",
             period: cdk.Duration.seconds(30),
           }),
@@ -407,8 +407,8 @@ export class GoObservabilityDemoStack extends cdk.Stack {
     new cdk.aws_cloudwatch.Alarm(this, "TooManyCreatedCoffeeOrders", {
       metric: new cdk.aws_cloudwatch.Metric({
         namespace: "GoObservabilityDemo/Application",
-        metricName: "CreatedCoffeeOrders",
-        statistic: "SampleCount",
+        metricName: "CreatedCoffeeOrders_Total",
+        statistic: "Sum",
         period: cdk.Duration.seconds(30),
       }),
       threshold: 5,

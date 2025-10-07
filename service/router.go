@@ -18,10 +18,19 @@ func setupRoutes(app *App) *chi.Mux {
 
 	// Routes
 	router.Get("/health", app.healthHandler)
+
+	// Standard coffee routes
 	router.Route("/coffee", func(r chi.Router) {
 		r.Get("/{id}", app.getCoffeeOrderHandler)
-		r.Post("/", app.createCoffeeOrderHandler)
 	})
+
+	// Person-specific coffee order endpoints
+	router.Post("/make-coffee-tom", app.createCoffeeOrderTomHandler)
+	router.Post("/make-coffee-honza", app.createCoffeeOrderHonzaHandler)
+	router.Post("/make-coffee-marek", app.createCoffeeOrderMarekHandler)
+	router.Post("/make-coffee-viking", app.createCoffeeOrderVikingHandler)
+	router.Post("/make-coffee-matus", app.createCoffeeOrderMatusHandler)
+	router.Post("/make-coffee-mila", app.createCoffeeOrderMilaHandler)
 
 	return router
 }

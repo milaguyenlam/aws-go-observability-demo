@@ -1,10 +1,12 @@
 package main
 
 import (
+	"context"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/cloudwatch"
+	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 )
 
@@ -12,11 +14,15 @@ import (
 type CloudWatchMetrics struct {
 	cw     *cloudwatch.CloudWatch
 	logger *zap.Logger
+	tracer trace.Tracer
 }
 
+const MetricsNamespace = "GoObservabilityDemo/Application"
+
 // sendRouteMetrics sends route metrics to CloudWatch
-func (m *CloudWatchMetrics) sendRouteMetrics(endpoint string, statusCode int, duration time.Duration) {
-	namespace := "GoObservabilityDemo/Application"
+func (m *CloudWatchMetrics) sendRouteMetrics(ctx context.Context, endpoint string, duration time.Duration) {
+	ctx, span := m.tracer.Start(ctx, "sendRouteMetrics")
+	defer span.End()
 
 	metrics := []*cloudwatch.MetricDatum{
 		{
@@ -53,18 +59,18 @@ func (m *CloudWatchMetrics) sendRouteMetrics(endpoint string, statusCode int, du
 	}
 
 	_, err := m.cw.PutMetricData(&cloudwatch.PutMetricDataInput{
-		Namespace:  aws.String(namespace),
+		Namespace:  aws.String(MetricsNamespace),
 		MetricData: metrics,
 	})
-
 	if err != nil {
 		m.logger.Error("Failed to send CloudWatch metrics", zap.Error(err))
 	}
 }
 
 // sendCreatedCoffeeOrderMetrics sends coffee order creation metrics to CloudWatch
-func (m *CloudWatchMetrics) sendCreatedCoffeeOrderMetrics(coffeeType string) {
-	namespace := "GoObservabilityDemo/Application"
+func (m *CloudWatchMetrics) sendCreatedCoffeeOrderMetrics(ctx context.Context, coffeeType string, userName string) {
+	ctx, span := m.tracer.Start(ctx, "sendCreatedCoffeeOrderMetrics")
+	defer span.End()
 
 	metrics := []*cloudwatch.MetricDatum{
 		{
@@ -86,13 +92,24 @@ func (m *CloudWatchMetrics) sendCreatedCoffeeOrderMetrics(coffeeType string) {
 			},
 			Timestamp: aws.Time(time.Now()),
 		},
+		{
+			MetricName: aws.String("CreatedCoffeeOrders_ByName"),
+			Value:      aws.Float64(1),
+			Unit:       aws.String("Count"),
+			Dimensions: []*cloudwatch.Dimension{
+				{
+					Name:  aws.String("UserName"),
+					Value: aws.String(userName),
+				},
+			},
+			Timestamp: aws.Time(time.Now()),
+		},
 	}
 
 	_, err := m.cw.PutMetricData(&cloudwatch.PutMetricDataInput{
-		Namespace:  aws.String(namespace),
+		Namespace:  aws.String(MetricsNamespace),
 		MetricData: metrics,
 	})
-
 	if err != nil {
 		m.logger.Error("Failed to send created coffee order metric to CloudWatch", zap.Error(err))
 	}

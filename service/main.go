@@ -53,6 +53,7 @@ func main() {
 	metrics := &CloudWatchMetrics{
 		cw:     cw,
 		logger: logger,
+		tracer: tracer,
 	}
 
 	// Create app instance

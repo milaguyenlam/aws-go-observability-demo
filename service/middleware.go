@@ -102,16 +102,16 @@ func (app *App) tracingMiddleware(next http.Handler) http.Handler {
 // metricsMiddleware handles CloudWatch metrics
 func (app *App) metricsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := r.Context()
 		start := time.Now()
 
-		wrapped := &responseWriter{ResponseWriter: w, statusCode: http.StatusOK}
-		next.ServeHTTP(wrapped, r)
+		next.ServeHTTP(w, r)
 
 		duration := time.Since(start)
 
 		// Send metrics to CloudWatch
-		routePattern := chi.RouteContext(r.Context()).RoutePattern()
-		go app.metrics.sendRouteMetrics(routePattern, wrapped.statusCode, duration)
+		routePattern := chi.RouteContext(ctx).RoutePattern()
+		go app.metrics.sendRouteMetrics(ctx, routePattern, duration)
 	})
 }
 

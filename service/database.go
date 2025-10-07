@@ -11,6 +11,12 @@ import (
 	"go.uber.org/zap"
 )
 
+// Database wraps pgxpool.Pool with additional functionality
+type Database struct {
+	pool   *pgxpool.Pool
+	logger *zap.Logger
+}
+
 // Open initializes a new database connection with pgxpool and tracing
 func Open(ctx context.Context, dsn string, logger *zap.Logger) (*Database, error) {
 	parsedConfig, err := pgxpool.ParseConfig(dsn)
@@ -104,6 +110,19 @@ func (db *Database) CreateCoffeeOrder(ctx context.Context, order CreateCoffeeOrd
 	var createdOrder CoffeeOrder
 
 	err := db.pool.QueryRow(ctx, query, order.UserName, order.CoffeeType).Scan(&createdOrder.ID, &createdOrder.UserName, &createdOrder.CoffeeType, &createdOrder.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+
+	return &createdOrder, nil
+}
+
+// CreateCoffeeOrder creates a new coffee order
+func (db *Database) CreateCoffeeOrderInOneHour(ctx context.Context, order CreateCoffeeOrder) (*CoffeeOrder, error) {
+	query := "INSERT INTO coffee_orders (user_name, coffee_type, created_at) VALUES ($1, $2, $3) RETURNING id, user_name, coffee_type, created_at"
+
+	var createdOrder CoffeeOrder
+	err := db.pool.QueryRow(ctx, query, order.UserName, order.CoffeeType, time.Now().Add(2*time.Hour)).Scan(&createdOrder.ID, &createdOrder.UserName, &createdOrder.CoffeeType, &createdOrder.CreatedAt)
 	if err != nil {
 		return nil, err
 	}
