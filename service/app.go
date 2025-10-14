@@ -3,19 +3,19 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	"go.opentelemetry.io/otel/trace"
-	"go.uber.org/zap"
 )
 
 // App represents the application instance
 type App struct {
 	db      *Database
-	logger  *zap.Logger
+	logger  *slog.Logger
 	metrics *CloudWatchMetrics
 	region  string
 	tracer  trace.Tracer
@@ -39,7 +39,7 @@ func (app *App) healthHandler(w http.ResponseWriter, r *http.Request) {
 	var dbStatus string
 	if err := app.db.Ping(ctx); err != nil {
 		dbStatus = "unhealthy"
-		app.logger.Error("Database health check failed", zap.Error(err))
+		app.logger.Error("Database health check failed", "error", err)
 	} else {
 		dbStatus = "healthy"
 	}
@@ -144,7 +144,7 @@ func (app *App) createCoffeeOrderMarekHandler(w http.ResponseWriter, r *http.Req
 	json.NewEncoder(w).Encode(order)
 }
 
-func (app *App) createCoffeeOrderVikingHandler(w http.ResponseWriter, r *http.Request) {
+func (app *App) createCoffeeOrderJakubHandler(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 
 	var coffeeOrder CreateCoffeeOrder
@@ -228,11 +228,11 @@ func (app *App) returnErrorResponse(w http.ResponseWriter, r *http.Request, mess
 	traceID := trace.SpanFromContext(r.Context()).SpanContext().TraceID().String()
 
 	app.logger.Error(message,
-		zap.String("request_id", requestID),
-		zap.String("trace_id", traceID),
-		zap.Error(err),
-		zap.String("method", r.Method),
-		zap.String("path", r.URL.Path),
+		"request_id", requestID,
+		"trace_id", traceID,
+		"error", err,
+		"method", r.Method,
+		"path", r.URL.Path,
 	)
 
 	errorResponse := ErrorResponse{

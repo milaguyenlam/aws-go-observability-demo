@@ -13,7 +13,6 @@ import (
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/trace"
-	"go.uber.org/zap"
 )
 
 // Context key type for request ID
@@ -33,12 +32,12 @@ func (app *App) loggingMiddleware(next http.Handler) http.Handler {
 
 		// Log request
 		app.logger.Info("Request started",
-			zap.String("request_id", requestID),
-			zap.String("trace_id", traceID),
-			zap.String("method", r.Method),
-			zap.String("path", r.URL.Path),
-			zap.String("remote_addr", r.RemoteAddr),
-			zap.String("user_agent", r.UserAgent()),
+			"request_id", requestID,
+			"trace_id", traceID,
+			"method", r.Method,
+			"path", r.URL.Path,
+			"remote_addr", r.RemoteAddr,
+			"user_agent", r.UserAgent(),
 		)
 
 		// Wrap response writer to capture status code
@@ -49,10 +48,10 @@ func (app *App) loggingMiddleware(next http.Handler) http.Handler {
 		// Log response
 		duration := time.Since(start)
 		app.logger.Info("Request completed",
-			zap.String("request_id", requestID),
-			zap.String("trace_id", traceID),
-			zap.Int("status_code", wrapped.statusCode),
-			zap.Duration("duration", duration),
+			"request_id", requestID,
+			"trace_id", traceID,
+			"status_code", wrapped.statusCode,
+			"duration", duration,
 		)
 	})
 }

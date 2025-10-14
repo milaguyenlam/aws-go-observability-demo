@@ -38,9 +38,7 @@ func initTracing() (trace.Tracer, func(), error) {
 	// This exporter sends traces over HTTP to AWS X-Ray, which provides
 	// distributed tracing visualization and analysis capabilities.
 	// Note: WithInsecure() is used for demo purposes - use HTTPS in production
-	exporter, err := otlptracehttp.New(context.Background(),
-		otlptracehttp.WithInsecure(), // Use HTTPS in production for security
-	)
+	exporter, err := otlptracehttp.New(context.Background())
 	if err != nil {
 		return nil, nil, err
 	}

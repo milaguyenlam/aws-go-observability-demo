@@ -3,22 +3,21 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
+	"os"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/cloudwatch"
-	"go.uber.org/zap"
 )
 
 func main() {
 	// Initialize logger
-	logger, err := zap.NewProduction()
-	if err != nil {
-		log.Fatal("Failed to initialize logger:", err)
-	}
-	defer logger.Sync()
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level: slog.LevelInfo,
+	}))
+	slog.SetDefault(logger)
 
 	// Load configuration
 	config := LoadConfig()
@@ -26,7 +25,8 @@ func main() {
 	// Initialize OpenTelemetry
 	tracer, cleanup, err := initTracing()
 	if err != nil {
-		logger.Fatal("Failed to initialize tracing", zap.Error(err))
+		logger.Error("Failed to initialize tracing", "error", err)
+		os.Exit(1)
 	}
 	defer cleanup()
 
@@ -36,7 +36,8 @@ func main() {
 
 	db, err := Open(context.Background(), dsn, logger)
 	if err != nil {
-		logger.Fatal("Failed to connect to database", zap.Error(err))
+		logger.Error("Failed to connect to database", "error", err)
+		os.Exit(1)
 	}
 	defer db.Close()
 
@@ -45,7 +46,8 @@ func main() {
 		Region: aws.String(config.Region),
 	})
 	if err != nil {
-		logger.Fatal("Failed to create AWS session", zap.Error(err))
+		logger.Error("Failed to create AWS session", "error", err)
+		os.Exit(1)
 	}
 	cw := cloudwatch.New(sess)
 
@@ -67,15 +69,17 @@ func main() {
 
 	// Initialize database schema
 	if err := app.initSchema(); err != nil {
-		logger.Fatal("Failed to initialize database schema", zap.Error(err))
+		logger.Error("Failed to initialize database schema", "error", err)
+		os.Exit(1)
 	}
 
 	router := setupRoutes(app)
 
 	// Start server
-	logger.Info("Starting server", zap.String("port", config.Port))
+	logger.Info("Starting server", "port", config.Port)
 
 	if err := http.ListenAndServe(":"+config.Port, router); err != nil {
-		logger.Fatal("Server failed to start", zap.Error(err))
+		logger.Error("Server failed to start", "error", err)
+		os.Exit(1)
 	}
 }

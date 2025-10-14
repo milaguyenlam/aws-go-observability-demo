@@ -28,7 +28,7 @@ func setupRoutes(app *App) *chi.Mux {
 	router.Post("/make-coffee-tom", app.createCoffeeOrderTomHandler)
 	router.Post("/make-coffee-honza", app.createCoffeeOrderHonzaHandler)
 	router.Post("/make-coffee-marek", app.createCoffeeOrderMarekHandler)
-	router.Post("/make-coffee-viking", app.createCoffeeOrderVikingHandler)
+	router.Post("/make-coffee-jakub", app.createCoffeeOrderJakubHandler)
 	router.Post("/make-coffee-matus", app.createCoffeeOrderMatusHandler)
 	router.Post("/make-coffee-mila", app.createCoffeeOrderMilaHandler)
 

@@ -3,22 +3,22 @@ package main
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/exaring/otelpgx"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.opentelemetry.io/otel/codes"
-	"go.uber.org/zap"
 )
 
 // Database wraps pgxpool.Pool with additional functionality
 type Database struct {
 	pool   *pgxpool.Pool
-	logger *zap.Logger
+	logger *slog.Logger
 }
 
 // Open initializes a new database connection with pgxpool and tracing
-func Open(ctx context.Context, dsn string, logger *zap.Logger) (*Database, error) {
+func Open(ctx context.Context, dsn string, logger *slog.Logger) (*Database, error) {
 	parsedConfig, err := pgxpool.ParseConfig(dsn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse config: %w", err)

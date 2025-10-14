@@ -2,18 +2,18 @@ package main
 
 import (
 	"context"
+	"log/slog"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/cloudwatch"
 	"go.opentelemetry.io/otel/trace"
-	"go.uber.org/zap"
 )
 
 // CloudWatchMetrics handles CloudWatch metrics operations
 type CloudWatchMetrics struct {
 	cw     *cloudwatch.CloudWatch
-	logger *zap.Logger
+	logger *slog.Logger
 	tracer trace.Tracer
 }
 
@@ -70,7 +70,7 @@ func (m *CloudWatchMetrics) sendRouteMetrics(ctx context.Context, endpoint strin
 		MetricData: metrics,
 	})
 	if err != nil {
-		m.logger.Error("Failed to send CloudWatch metrics", zap.Error(err))
+		m.logger.Error("Failed to send CloudWatch metrics", "error", err)
 	}
 }
 
@@ -118,6 +118,6 @@ func (m *CloudWatchMetrics) sendCreatedCoffeeOrderMetrics(ctx context.Context, c
 		MetricData: metrics,
 	})
 	if err != nil {
-		m.logger.Error("Failed to send created coffee order metric to CloudWatch", zap.Error(err))
+		m.logger.Error("Failed to send created coffee order metric to CloudWatch", "error", err)
 	}
 }

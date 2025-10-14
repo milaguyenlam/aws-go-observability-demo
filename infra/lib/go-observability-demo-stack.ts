@@ -194,8 +194,8 @@ export class GoObservabilityDemoStack extends cdk.Stack {
               "GoObservabilityDemoRepository",
               "go-observability-demo"
             ),
-            "0.0.1"
-          ), // Placeholder - will be updated
+            "0.0.3"
+          ),
           containerPort: 8080,
           environment: {
             DB_HOST: database.instanceEndpoint.hostname,
@@ -268,7 +268,7 @@ export class GoObservabilityDemoStack extends cdk.Stack {
 
     // CloudWatch Dashboard
     const dashboard = new cdk.aws_cloudwatch.Dashboard(this, "Dashboard", {
-      dashboardName: "GoObservabilityDemo-Dashboard",
+      dashboardName: "CloudWatch-Default",
     });
 
     // Add widgets to dashboard
@@ -357,22 +357,6 @@ export class GoObservabilityDemoStack extends cdk.Stack {
       })
     );
 
-    // CloudWatch Alarms
-    new cdk.aws_cloudwatch.Alarm(this, "HighErrorRate", {
-      metric: new cdk.aws_cloudwatch.Metric({
-        namespace: "AWS/ApplicationELB",
-        metricName: "HTTPCode_Target_5XX_Count",
-        dimensionsMap: {
-          LoadBalancer: service.loadBalancer.loadBalancerFullName,
-        },
-        statistic: "Sum",
-        period: cdk.Duration.minutes(10),
-      }),
-      threshold: 5,
-      evaluationPeriods: 1,
-      alarmDescription: "High error rate detected",
-    });
-
     new cdk.aws_cloudwatch.Alarm(this, "HighResponseTime", {
       metric: new cdk.aws_cloudwatch.Metric({
         namespace: "AWS/ApplicationELB",
@@ -386,22 +370,6 @@ export class GoObservabilityDemoStack extends cdk.Stack {
       threshold: 2,
       evaluationPeriods: 1,
       alarmDescription: "High response time detected",
-    });
-
-    new cdk.aws_cloudwatch.Alarm(this, "HighCPU", {
-      metric: new cdk.aws_cloudwatch.Metric({
-        namespace: "AWS/ECS",
-        metricName: "CPUUtilization",
-        dimensionsMap: {
-          ServiceName: service.service.serviceName,
-          ClusterName: cluster.clusterName,
-        },
-        statistic: "Maximum",
-        period: cdk.Duration.seconds(30),
-      }),
-      threshold: 80,
-      evaluationPeriods: 1,
-      alarmDescription: "High CPU utilization detected",
     });
 
     new cdk.aws_cloudwatch.Alarm(this, "TooManyCreatedCoffeeOrders", {
